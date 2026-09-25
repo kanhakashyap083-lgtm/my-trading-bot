@@ -23,12 +23,13 @@ ticker_symbol = ticker_map[index_choice]
 st.subheader(f"📊 Live Market Status: {index_choice}")
 
 try:
-    # Live data laane ka code
-    data = yf.download(ticker_symbol, period="1d", interval="5m")
+    # Safe aur clean tareeka live data laane ka
+    ticker_data = yf.Ticker(ticker_symbol)
+    data = ticker_data.history(period="1d", interval="5m")
     
     if not data.empty:
-        # Error fix: to_numpy() ensures we get a clean number, not a Series
-        current_price = float(data['Close'].to_numpy()[-1])
+        # Seedha aakhri (latest) price nikalna
+        current_price = float(data['Close'].iloc[-1])
         
         st.metric(label=f"{index_choice} Current Price", value=f"₹{current_price:.2f}")
         st.success("✅ Live Market Data Loaded Successfully!")
