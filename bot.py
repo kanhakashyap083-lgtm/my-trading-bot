@@ -26,29 +26,41 @@ if category == "⛓️ Option Chain":
     st.warning("⚠️ Option Chain ka structure ready hai! Agle step mein hum NSE India ki website se live data layenge.")
 
 elif category == "🔍 Auto-Scanner":
-    st.title("🔍 Live Stock Scanner (Nifty, BankNifty & Sensex)")
-    st.write("Yeh bot top stocks ko scan karke aapko **Entry, Target, aur Stop-Loss** ke sath complete trade plan dega.")
+    st.title("🔍 Advanced Stock Scanner (Intraday & Swing)")
+    st.write("Ab aap decide karein ki aapko trade kab tak hold karna hai. Bot usi hisaab se **50 EMA aur 200 EMA** calculate karega.")
+    
+    # Naya Feature: Timeframe Selector
+    trade_type = st.radio("⏳ Trading Style Select Karein:", ["🚀 Intraday (Aaj hi Buy/Sell)", "📆 Swing / Positional (1-2 Hafte Hold)"])
     
     scan_list = {
         "RELIANCE": "RELIANCE.NS", "HDFC BANK": "HDFCBANK.NS", "ICICI BANK": "ICICIBANK.NS", 
         "INFOSYS": "INFY.NS", "TCS": "TCS.NS", "SBI": "SBIN.NS", "ITC": "ITC.NS", 
         "BHARTI AIRTEL": "BHARTIARTL.NS", "L&T": "LT.NS", "BAJAJ FINANCE": "BAJFINANCE.NS",
         "AXIS BANK": "AXISBANK.NS", "KOTAK BANK": "KOTAKBANK.NS", "TATA MOTORS": "TATAMOTORS.NS", 
-        "SUN PHARMA": "SUNPHARMA.NS", "MARUTI": "MARUTI.NS", "HINDUNILVR": "HINDUNILVR.NS",
-        "M&M": "M&M.NS", "TITAN": "TITAN.NS", "HCL TECH": "HCLTECH.NS", "INDUSIND BANK": "INDUSINDBK.NS",
-        "PNB": "PNB.NS", "BANK OF BARODA": "BANKBARODA.NS", "NTPC": "NTPC.NS", "TATA STEEL": "TATASTEEL.NS"
+        "SUN PHARMA": "SUNPHARMA.NS", "MARUTI": "MARUTI.NS", "M&M": "M&M.NS"
     }
     
     if st.button("🚀 Start Scanning Now"):
-        with st.spinner("Market scan ho raha hai... Entry, Target aur SL calculate kiye ja rahe hain..."):
+        with st.spinner(f"Scanning for {trade_type}... Isme thoda samay lag sakta hai..."):
             results = []
             for name, ticker_symbol in scan_list.items():
                 try:
                     ticker = yf.Ticker(ticker_symbol)
-                    data = ticker.history(period="5d", interval="5m")
+                    
+                    # Logic: Intraday vs Swing
+                    if "Intraday" in trade_type:
+                        data = ticker.history(period="5d", interval="5m")
+                        tgt_pct, sl_pct, hold_text = 0.01, 0.005, "Intraday (Same Day)"
+                    else:
+                        data = ticker.history(period="1y", interval="1d") # Swing ke liye 1 saal ka Daily data
+                        tgt_pct, sl_pct, hold_text = 0.05, 0.02, "1-2 Weeks (Swing)"
+                        
                     if not data.empty:
+                        # Adding Multiple MAs: 9, 21, 50, and 200
                         data['EMA_9'] = data['Close'].ewm(span=9, adjust=False).mean()
                         data['EMA_21'] = data['Close'].ewm(span=21, adjust=False).mean()
+                        data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()
+                        data['EMA_200'] = data['Close'].ewm(span=200, adjust=False).mean()
                         
                         delta = data['Close'].diff()
                         gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -59,45 +71,34 @@ elif category == "🔍 Auto-Scanner":
                         current_price = float(data['Close'].iloc[-1])
                         ema_9 = float(data['EMA_9'].iloc[-1])
                         ema_21 = float(data['EMA_21'].iloc[-1])
+                        ema_50 = float(data['EMA_50'].iloc[-1])
+                        ema_200 = float(data['EMA_200'].iloc[-1])
                         rsi = float(data['RSI'].iloc[-1])
                         
-                        # Calculation: 0.5% Stop-Loss and 1% Target for Stocks
-                        sl_points = current_price * 0.005
-                        target_points = current_price * 0.01
+                        sl_points = current_price * sl_pct
+                        target_points = current_price * tgt_pct
                         
-                        if ema_9 > ema_21 and rsi > 55:
-                            tgt = current_price + target_points
-                            sl = current_price - sl_points
-                            results.append({
-                                "Stock Name": name, 
-                                "Action": "🟢 BUY", 
-                                "Entry Price": f"₹{current_price:.2f}",
-                                "Target": f"₹{tgt:.2f}",
-                                "Stop-Loss": f"₹{sl:.2f}",
-                                "Hold Time": "Intraday",
-                                "RSI": round(rsi, 1)
-                            })
-                        elif ema_9 < ema_21 and rsi < 45:
-                            tgt = current_price - target_points
-                            sl = current_price + sl_points
-                            results.append({
-                                "Stock Name": name, 
-                                "Action": "🔴 SELL (Short)", 
-                                "Entry Price": f"₹{current_price:.2f}",
-                                "Target": f"₹{tgt:.2f}",
-                                "Stop-Loss": f"₹{sl:.2f}",
-                                "Hold Time": "Intraday",
-                                "RSI": round(rsi, 1)
-                            })
+                        if "Swing" in trade_type:
+                            # Swing Trading Logic: Price must be above 200 EMA (Long-term Bullish)
+                            if current_price > ema_200 and ema_9 > ema_21 and rsi > 55:
+                                results.append({"Stock Name": name, "Action": "🟢 BUY", "Entry Price": f"₹{current_price:.2f}", "Target (5%)": f"₹{current_price + target_points:.2f}", "Stop-Loss (2%)": f"₹{current_price - sl_points:.2f}", "Hold Time": hold_text})
+                            elif current_price < ema_200 and ema_9 < ema_21 and rsi < 45:
+                                results.append({"Stock Name": name, "Action": "🔴 SELL", "Entry Price": f"₹{current_price:.2f}", "Target (5%)": f"₹{current_price - target_points:.2f}", "Stop-Loss (2%)": f"₹{current_price + sl_points:.2f}", "Hold Time": hold_text})
+                        else:
+                            # Intraday Trading Logic
+                            if ema_9 > ema_21 and rsi > 55:
+                                results.append({"Stock Name": name, "Action": "🟢 BUY", "Entry Price": f"₹{current_price:.2f}", "Target (1%)": f"₹{current_price + target_points:.2f}", "Stop-Loss": f"₹{current_price - sl_points:.2f}", "Hold Time": hold_text})
+                            elif ema_9 < ema_21 and rsi < 45:
+                                results.append({"Stock Name": name, "Action": "🔴 SELL", "Entry Price": f"₹{current_price:.2f}", "Target (1%)": f"₹{current_price - target_points:.2f}", "Stop-Loss": f"₹{current_price + sl_points:.2f}", "Hold Time": hold_text})
                 except:
-                    pass
+                    continue
             
             if results:
                 df = pd.DataFrame(results)
-                st.success("✅ Scanning Complete! Yeh raha aapka complete Trade Plan:")
+                st.success("✅ Scanning Complete! Yeh raha aapka smart Trade Plan:")
                 st.dataframe(df, use_container_width=True)
             else:
-                st.info("Abhi kisi bhi stock me clear Buy/Sell signal nahi hai. Market sideways hai, thodi der baad scan karein.")
+                st.info("Abhi kisi bhi stock me aapki condition ke hisaab se Buy/Sell signal nahi hai.")
 
 else:
     st.title(f"🚀 {category} Signal Bot")
@@ -108,11 +109,13 @@ else:
     
     try:
         ticker = yf.Ticker(ticker_symbol)
-        data = ticker.history(period="5d", interval="5m")
+        data = ticker.history(period="1mo", interval="5m") # 1 month data for better 200 EMA
         
         if not data.empty:
             data['EMA_9'] = data['Close'].ewm(span=9, adjust=False).mean()
             data['EMA_21'] = data['Close'].ewm(span=21, adjust=False).mean()
+            data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()
+            data['EMA_200'] = data['Close'].ewm(span=200, adjust=False).mean()
             
             delta = data['Close'].diff()
             gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
@@ -123,6 +126,8 @@ else:
             current_price = float(data['Close'].iloc[-1])
             ema_9_val = float(data['EMA_9'].iloc[-1])
             ema_21_val = float(data['EMA_21'].iloc[-1])
+            ema_50_val = float(data['EMA_50'].iloc[-1])
+            ema_200_val = float(data['EMA_200'].iloc[-1])
             rsi_val = float(data['RSI'].iloc[-1])
             
             st.metric(label=f"{selected_asset} Current Price", value=f"₹{current_price:.2f}")
@@ -159,6 +164,7 @@ else:
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.info(f"💡 **Trend:** {trend}")
+                st.caption(f"50 EMA: {ema_50_val:.2f} | 200 EMA: {ema_200_val:.2f}")
             with col2:
                 if color == "success":
                     st.success(f"⚡ **Action:** {action}")
