@@ -5,12 +5,12 @@ import warnings
 from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
-st.set_page_config(page_title="Mega Trading Terminal", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="Mega Trading Terminal (Pro AI)", layout="wide", page_icon="🤖")
 
 st_autorefresh(interval=60000, limit=200, key="fando_refresh")
 
 st.sidebar.title("⚡ Mega Terminal")
-st.sidebar.info("All-in-One Market Data")
+st.sidebar.info("Pro-Trader AI Mode: Triple Confirmation (EMA + RSI + MACD)")
 
 category = st.sidebar.radio("📁 Kya Dekhna Hai?", ["📊 Main Indices", "🏢 Sub-Sectors", "📈 Top Stocks", "🔍 Auto-Scanner", "⛓️ Option Chain"])
 
@@ -20,16 +20,37 @@ market_data = {
     "📈 Top Stocks": {"RELIANCE": "RELIANCE.NS", "HDFC BANK": "HDFCBANK.NS", "TCS": "TCS.NS", "SBI": "SBIN.NS", "INFOSYS": "INFY.NS"}
 }
 
+def calculate_indicators(data):
+    # EMAs
+    data['EMA_9'] = data['Close'].ewm(span=9, adjust=False).mean()
+    data['EMA_21'] = data['Close'].ewm(span=21, adjust=False).mean()
+    data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()
+    data['EMA_200'] = data['Close'].ewm(span=200, adjust=False).mean()
+    
+    # RSI
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+    rs = gain / loss
+    data['RSI'] = 100 - (100 / (1 + rs))
+    
+    # MACD (Moving Average Convergence Divergence)
+    exp1 = data['Close'].ewm(span=12, adjust=False).mean()
+    exp2 = data['Close'].ewm(span=26, adjust=False).mean()
+    data['MACD'] = exp1 - exp2
+    data['Signal_Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
+    
+    return data
+
 if category == "⛓️ Option Chain":
     st.title("⛓️ Advanced Option Chain")
     st.write("---")
-    st.warning("⚠️ Option Chain ka structure ready hai! Agle step mein hum NSE India ki website se live data layenge.")
+    st.warning("⚠️ Agle update mein yahan NSE ka data aayega.")
 
 elif category == "🔍 Auto-Scanner":
-    st.title("🔍 Advanced Stock Scanner (Intraday & Swing)")
-    st.write("Ab aap decide karein ki aapko trade kab tak hold karna hai. Bot usi hisaab se **50 EMA aur 200 EMA** calculate karega.")
+    st.title("🤖 Pro-AI Stock Scanner (Triple Filtered)")
+    st.write("Yeh bot ek Professional Trader ki tarah sochta hai. Yeh tabhi signal dega jab **EMA, RSI, aur MACD teeno ek sath agree karenge**.")
     
-    # Naya Feature: Timeframe Selector
     trade_type = st.radio("⏳ Trading Style Select Karein:", ["🚀 Intraday (Aaj hi Buy/Sell)", "📆 Swing / Positional (1-2 Hafte Hold)"])
     
     scan_list = {
@@ -40,148 +61,109 @@ elif category == "🔍 Auto-Scanner":
         "SUN PHARMA": "SUNPHARMA.NS", "MARUTI": "MARUTI.NS", "M&M": "M&M.NS"
     }
     
-    if st.button("🚀 Start Scanning Now"):
-        with st.spinner(f"Scanning for {trade_type}... Isme thoda samay lag sakta hai..."):
+    if st.button("🚀 Run Pro-Trader Scan"):
+        with st.spinner("AI is analyzing charts like a Pro... strict filtering active..."):
             results = []
             for name, ticker_symbol in scan_list.items():
                 try:
                     ticker = yf.Ticker(ticker_symbol)
                     
-                    # Logic: Intraday vs Swing
                     if "Intraday" in trade_type:
                         data = ticker.history(period="5d", interval="5m")
                         tgt_pct, sl_pct, hold_text = 0.01, 0.005, "Intraday (Same Day)"
                     else:
-                        data = ticker.history(period="1y", interval="1d") # Swing ke liye 1 saal ka Daily data
-                        tgt_pct, sl_pct, hold_text = 0.05, 0.02, "1-2 Weeks (Swing)"
+                        data = ticker.history(period="1y", interval="1d")
+                        tgt_pct, sl_pct, hold_text = "5-8%", "2-3%", "1-2 Weeks (Swing)"
                         
                     if not data.empty:
-                        # Adding Multiple MAs: 9, 21, 50, and 200
-                        data['EMA_9'] = data['Close'].ewm(span=9, adjust=False).mean()
-                        data['EMA_21'] = data['Close'].ewm(span=21, adjust=False).mean()
-                        data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()
-                        data['EMA_200'] = data['Close'].ewm(span=200, adjust=False).mean()
+                        data = calculate_indicators(data)
                         
-                        delta = data['Close'].diff()
-                        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-                        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-                        rs = gain / loss
-                        data['RSI'] = 100 - (100 / (1 + rs))
-                        
-                        current_price = float(data['Close'].iloc[-1])
-                        ema_9 = float(data['EMA_9'].iloc[-1])
-                        ema_21 = float(data['EMA_21'].iloc[-1])
-                        ema_50 = float(data['EMA_50'].iloc[-1])
-                        ema_200 = float(data['EMA_200'].iloc[-1])
+                        curr = float(data['Close'].iloc[-1])
+                        e9, e21, e200 = float(data['EMA_9'].iloc[-1]), float(data['EMA_21'].iloc[-1]), float(data['EMA_200'].iloc[-1])
                         rsi = float(data['RSI'].iloc[-1])
+                        macd, macd_sig = float(data['MACD'].iloc[-1]), float(data['Signal_Line'].iloc[-1])
                         
-                        sl_points = current_price * sl_pct
-                        target_points = current_price * tgt_pct
+                        # Triple Confirmation Logic
+                        bullish_condition = (e9 > e21) and (rsi > 55) and (macd > macd_sig)
+                        bearish_condition = (e9 < e21) and (rsi < 45) and (macd < macd_sig)
+                        
+                        sl_val = curr * (0.005 if "Intraday" in trade_type else 0.02)
+                        tgt_val = curr * (0.01 if "Intraday" in trade_type else 0.05)
                         
                         if "Swing" in trade_type:
-                            # Swing Trading Logic: Price must be above 200 EMA (Long-term Bullish)
-                            if current_price > ema_200 and ema_9 > ema_21 and rsi > 55:
-                                results.append({"Stock Name": name, "Action": "🟢 BUY", "Entry Price": f"₹{current_price:.2f}", "Target (5%)": f"₹{current_price + target_points:.2f}", "Stop-Loss (2%)": f"₹{current_price - sl_points:.2f}", "Hold Time": hold_text})
-                            elif current_price < ema_200 and ema_9 < ema_21 and rsi < 45:
-                                results.append({"Stock Name": name, "Action": "🔴 SELL", "Entry Price": f"₹{current_price:.2f}", "Target (5%)": f"₹{current_price - target_points:.2f}", "Stop-Loss (2%)": f"₹{current_price + sl_points:.2f}", "Hold Time": hold_text})
+                            if curr > e200 and bullish_condition:
+                                results.append({"Stock": name, "Action": "🟢 STRONG BUY", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_val:.2f}", "SL": f"₹{curr - sl_val:.2f}", "Hold": hold_text})
+                            elif curr < e200 and bearish_condition:
+                                results.append({"Stock": name, "Action": "🔴 STRONG SELL", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr - tgt_val:.2f}", "SL": f"₹{curr + sl_val:.2f}", "Hold": hold_text})
                         else:
-                            # Intraday Trading Logic
-                            if ema_9 > ema_21 and rsi > 55:
-                                results.append({"Stock Name": name, "Action": "🟢 BUY", "Entry Price": f"₹{current_price:.2f}", "Target (1%)": f"₹{current_price + target_points:.2f}", "Stop-Loss": f"₹{current_price - sl_points:.2f}", "Hold Time": hold_text})
-                            elif ema_9 < ema_21 and rsi < 45:
-                                results.append({"Stock Name": name, "Action": "🔴 SELL", "Entry Price": f"₹{current_price:.2f}", "Target (1%)": f"₹{current_price - target_points:.2f}", "Stop-Loss": f"₹{current_price + sl_points:.2f}", "Hold Time": hold_text})
+                            if bullish_condition:
+                                results.append({"Stock": name, "Action": "🟢 STRONG BUY", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_val:.2f}", "SL": f"₹{curr - sl_val:.2f}", "Hold": hold_text})
+                            elif bearish_condition:
+                                results.append({"Stock": name, "Action": "🔴 STRONG SELL", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr - tgt_val:.2f}", "SL": f"₹{curr + sl_val:.2f}", "Hold": hold_text})
                 except:
                     continue
             
             if results:
                 df = pd.DataFrame(results)
-                st.success("✅ Scanning Complete! Yeh raha aapka smart Trade Plan:")
+                st.success(f"🎯 Perfect Trader AI found {len(results)} high-probability setups:")
                 st.dataframe(df, use_container_width=True)
             else:
-                st.info("Abhi kisi bhi stock me aapki condition ke hisaab se Buy/Sell signal nahi hai.")
+                st.warning("⚖️ Pro-Trader AI says: 'Koi strong setup nahi hai. Capital bacha kar rakho!' (No trades found based on strict rules).")
 
 else:
-    st.title(f"🚀 {category} Signal Bot")
+    st.title(f"🚀 {category} AI Signals")
     selected_asset = st.sidebar.selectbox("Kiska Signal Chahiye?", list(market_data[category].keys()))
     ticker_symbol = market_data[category][selected_asset]
     
-    st.subheader(f"📊 Live Status: {selected_asset}")
-    
     try:
         ticker = yf.Ticker(ticker_symbol)
-        data = ticker.history(period="1mo", interval="5m") # 1 month data for better 200 EMA
+        data = ticker.history(period="1mo", interval="5m") 
         
         if not data.empty:
-            data['EMA_9'] = data['Close'].ewm(span=9, adjust=False).mean()
-            data['EMA_21'] = data['Close'].ewm(span=21, adjust=False).mean()
-            data['EMA_50'] = data['Close'].ewm(span=50, adjust=False).mean()
-            data['EMA_200'] = data['Close'].ewm(span=200, adjust=False).mean()
+            data = calculate_indicators(data)
             
-            delta = data['Close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            data['RSI'] = 100 - (100 / (1 + rs))
+            curr = float(data['Close'].iloc[-1])
+            e9, e21, e200 = float(data['EMA_9'].iloc[-1]), float(data['EMA_21'].iloc[-1]), float(data['EMA_200'].iloc[-1])
+            rsi = float(data['RSI'].iloc[-1])
+            macd, macd_sig = float(data['MACD'].iloc[-1]), float(data['Signal_Line'].iloc[-1])
             
-            current_price = float(data['Close'].iloc[-1])
-            ema_9_val = float(data['EMA_9'].iloc[-1])
-            ema_21_val = float(data['EMA_21'].iloc[-1])
-            ema_50_val = float(data['EMA_50'].iloc[-1])
-            ema_200_val = float(data['EMA_200'].iloc[-1])
-            rsi_val = float(data['RSI'].iloc[-1])
+            st.subheader(f"📊 {selected_asset}: ₹{curr:.2f}")
             
-            st.metric(label=f"{selected_asset} Current Price", value=f"₹{current_price:.2f}")
+            bullish = (e9 > e21) and (rsi > 55) and (macd > macd_sig)
+            bearish = (e9 < e21) and (rsi < 45) and (macd < macd_sig)
             
             if "^" in ticker_symbol: 
-                sl_points = current_price * 0.002
-                target_points = current_price * 0.004
+                tgt_pts, sl_pts = curr * 0.004, curr * 0.002
             else:
-                sl_points = current_price * 0.005
-                target_points = current_price * 0.01
+                tgt_pts, sl_pts = curr * 0.01, curr * 0.005
 
-            if ema_9_val > ema_21_val and rsi_val > 55:
-                trend = "🟢 Bullish (Uptrend)"
-                action = "🚀 BUY CALL (CE) / LONG"
-                color = "success"
-                sl_value = current_price - sl_points
-                target_value = current_price + target_points
-            elif ema_9_val < ema_21_val and rsi_val < 45:
-                trend = "🔴 Bearish (Downtrend)"
-                action = "📉 BUY PUT (PE) / SHORT"
-                color = "error"
-                sl_value = current_price + sl_points
-                target_value = current_price - target_points
+            if bullish:
+                trend, action, color = "🟢 Bullish", "🚀 STRONG BUY (CE / LONG)", "success"
+                sl, tgt = curr - sl_pts, curr + tgt_pts
+            elif bearish:
+                trend, action, color = "🔴 Bearish", "📉 STRONG SELL (PE / SHORT)", "error"
+                sl, tgt = curr + sl_pts, curr - tgt_pts
             else:
-                trend = "🟡 Sideways (Choppy)"
-                action = "⏳ WAIT (No Trade Zone)"
-                color = "warning"
-                sl_value = 0
-                target_value = 0
+                trend, action, color = "🟡 Choppy / Unclear", "⏳ WAIT (Strict Pro-Trader Rule)", "warning"
+                sl, tgt = 0, 0
             
             st.markdown("---")
-            st.header("🎯 AI Trading Signals")
-            
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.info(f"💡 **Trend:** {trend}")
-                st.caption(f"50 EMA: {ema_50_val:.2f} | 200 EMA: {ema_200_val:.2f}")
+                st.caption(f"MACD Status: {'Positive' if macd > macd_sig else 'Negative'}")
             with col2:
                 if color == "success":
                     st.success(f"⚡ **Action:** {action}")
-                    st.write(f"**🎯 Target:** ₹{target_value:.2f} | **🛑 SL:** ₹{sl_value:.2f}")
+                    st.write(f"**🎯 TGT:** ₹{tgt:.2f} | **🛑 SL:** ₹{sl:.2f}")
                 elif color == "error":
                     st.error(f"⚡ **Action:** {action}")
-                    st.write(f"**🎯 Target:** ₹{target_value:.2f} | **🛑 SL:** ₹{sl_value:.2f}")
+                    st.write(f"**🎯 TGT:** ₹{tgt:.2f} | **🛑 SL:** ₹{sl:.2f}")
                 else:
                     st.warning(f"⚡ **Action:** {action}")
             with col3:
-                st.metric(label="RSI (Momentum)", value=f"{rsi_val:.1f}")
+                st.metric(label="RSI", value=f"{rsi:.1f}")
+                st.caption("Above 55 is Bullish, Below 45 is Bearish")
                 
-        else:
-            st.warning("Data load ho raha hai...")
-            
     except Exception as e:
-        st.error(f"Data laane mein error aaya: {e}")
-
-st.markdown("---")
-st.caption("Disclaimer: Trade hamesha apne risk par lein aur Stop-Loss zaroor maintain karein.")
+        st.error(f"Error: {e}")
