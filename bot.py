@@ -27,9 +27,8 @@ if category == "⛓️ Option Chain":
 
 elif category == "🔍 Auto-Scanner":
     st.title("🔍 Live Stock Scanner (Nifty, BankNifty & Sensex)")
-    st.write("Yeh bot ab India ke sabse top F&O stocks ko background mein check karega aur sirf wahi stocks dikhayega jinme abhi clear BUY ya SELL signal hai.")
+    st.write("Yeh bot top stocks ko scan karke aapko **Entry, Target, aur Stop-Loss** ke sath complete trade plan dega.")
     
-    # Nifty, Bank Nifty aur Sensex ke top heavyweights
     scan_list = {
         "RELIANCE": "RELIANCE.NS", "HDFC BANK": "HDFCBANK.NS", "ICICI BANK": "ICICIBANK.NS", 
         "INFOSYS": "INFY.NS", "TCS": "TCS.NS", "SBI": "SBIN.NS", "ITC": "ITC.NS", 
@@ -41,7 +40,7 @@ elif category == "🔍 Auto-Scanner":
     }
     
     if st.button("🚀 Start Scanning Now"):
-        with st.spinner("Market scan ho raha hai (Nifty, BankNifty, Sensex)... Kripya 15-20 seconds wait karein..."):
+        with st.spinner("Market scan ho raha hai... Entry, Target aur SL calculate kiye ja rahe hain..."):
             results = []
             for name, ticker_symbol in scan_list.items():
                 try:
@@ -62,16 +61,40 @@ elif category == "🔍 Auto-Scanner":
                         ema_21 = float(data['EMA_21'].iloc[-1])
                         rsi = float(data['RSI'].iloc[-1])
                         
+                        # Calculation: 0.5% Stop-Loss and 1% Target for Stocks
+                        sl_points = current_price * 0.005
+                        target_points = current_price * 0.01
+                        
                         if ema_9 > ema_21 and rsi > 55:
-                            results.append({"Stock Name": name, "Current Price": f"₹{current_price:.2f}", "Signal": "🟢 BUY", "RSI Momentum": round(rsi, 1)})
+                            tgt = current_price + target_points
+                            sl = current_price - sl_points
+                            results.append({
+                                "Stock Name": name, 
+                                "Action": "🟢 BUY", 
+                                "Entry Price": f"₹{current_price:.2f}",
+                                "Target": f"₹{tgt:.2f}",
+                                "Stop-Loss": f"₹{sl:.2f}",
+                                "Hold Time": "Intraday",
+                                "RSI": round(rsi, 1)
+                            })
                         elif ema_9 < ema_21 and rsi < 45:
-                            results.append({"Stock Name": name, "Current Price": f"₹{current_price:.2f}", "Signal": "🔴 SELL", "RSI Momentum": round(rsi, 1)})
+                            tgt = current_price - target_points
+                            sl = current_price + sl_points
+                            results.append({
+                                "Stock Name": name, 
+                                "Action": "🔴 SELL (Short)", 
+                                "Entry Price": f"₹{current_price:.2f}",
+                                "Target": f"₹{tgt:.2f}",
+                                "Stop-Loss": f"₹{sl:.2f}",
+                                "Hold Time": "Intraday",
+                                "RSI": round(rsi, 1)
+                            })
                 except:
                     pass
             
             if results:
                 df = pd.DataFrame(results)
-                st.success("✅ Scanning Complete! Yeh rahe aaj ke best stocks:")
+                st.success("✅ Scanning Complete! Yeh raha aapka complete Trade Plan:")
                 st.dataframe(df, use_container_width=True)
             else:
                 st.info("Abhi kisi bhi stock me clear Buy/Sell signal nahi hai. Market sideways hai, thodi der baad scan karein.")
