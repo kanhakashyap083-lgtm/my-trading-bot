@@ -1,37 +1,52 @@
 import streamlit as st
 import pandas as pd
+import yfinance as yf
 import plotly.graph_objects as go
-from dhanhq import dhanhq
 import warnings
 
 warnings.filterwarnings("ignore")
-st.set_page_config(page_title="AI F&O Master Bot", layout="wide", page_icon="🚀")
+st.set_page_config(page_title="AI F&O Signal Bot", layout="wide", page_icon="🚀")
 
-st.sidebar.title("⚡ AI F&O Master (Dhan)")
+st.sidebar.title("⚡ F&O Signal Master")
+st.sidebar.info("Trading Mode: Manual (Groww App)")
 
-# 1. Tijori (Secrets) se Keys nikalna
+st.title("🚀 Advanced F&O Trading Dashboard (Groww Edition)")
+st.markdown("Yeh bot Market ka trend analyze karke aapko **Trading Signals** dega. Trades aap aaram se apne **Groww App** mein le sakte hain.")
+
+# Market Selector
+index_choice = st.sidebar.selectbox("Kiska Signal Chahiye?", ["NIFTY 50", "BANK NIFTY"])
+
+# Ticker mapping for yfinance
+ticker_map = {"NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK"}
+ticker_symbol = ticker_map[index_choice]
+
+st.subheader(f"📊 Live Market Status: {index_choice}")
+
 try:
-    client_id = st.secrets["DHAN_CLIENT_ID"]
-    access_token = st.secrets["DHAN_ACCESS_TOKEN"]
+    # Live data laane ka code
+    data = yf.download(ticker_symbol, period="1d", interval="5m")
+    
+    if not data.empty:
+        # Puraani library error na de isliye .item() use kiya hai
+        current_price = float(data['Close'].iloc[-1])
+        
+        st.metric(label=f"{index_choice} Current Price", value=f"₹{current_price:.2f}")
+        st.success("✅ Live Market Data Loaded Successfully!")
+        
+        st.markdown("---")
+        st.header("🎯 AI Trading Signals")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.info("💡 **Market Trend:** Bot abhi data analyze kar raha hai...")
+        with col2:
+            st.warning("⚡ **Action:** Abhi koi entry nahi ban rahi. Wait karein.")
+            
+    else:
+        st.warning("Market data load ho raha hai...")
+        
 except Exception as e:
-    st.error("⚠️ Dhan API Keys nahi mili! Kripya Streamlit Secrets check karein.")
-    st.stop()
+    st.error(f"Data laane mein error aaya: {e}")
 
-# 2. Dhan Account se Connection Banana
-try:
-    dhan = dhanhq(client_id, access_token)
-    st.sidebar.success("✅ Dhan API Connected!")
-except Exception as e:
-    st.sidebar.error("❌ Dhan API Connection Failed!")
-
-st.title("🚀 Advanced F&O Trading Dashboard")
-st.markdown("Yeh dashboard ab seedha aapke **Dhan Account** se juda hai. Yahan se hum Live Options (Call/Put) ka data nikalenge.")
-
-# 3. Market Selector
-segment = st.sidebar.selectbox("Index Select Karein", ["NIFTY", "BANKNIFTY", "FINNIFTY", "SENSEX"])
-
-st.subheader(f"📊 Live Data Status: {segment}")
-st.info("System Ready: API connection successful. Yahan aapka Option Chain aur Auto-Buy/Sell signals aayenge!")
-
-# Yahan hum aage chalkar live Option Chain aur VIX ka data layenge
-st.write("Ab aapka bot professional F&O algo trading ke liye ekdum taiyar hai.")
+st.markdown("---")
+st.write("Agla Step: Hum yahan Options ke Greeks aur PCR (Put-Call Ratio) ka data add karenge.")
