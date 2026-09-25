@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-import requests
 import warnings
 from streamlit_autorefresh import st_autorefresh
 
@@ -11,9 +10,10 @@ st.set_page_config(page_title="Mega Trading Terminal (Pro AI)", layout="wide", p
 st_autorefresh(interval=60000, limit=200, key="fando_refresh")
 
 st.sidebar.title("⚡ Mega Terminal")
-st.sidebar.info("Pro-Trader AI Mode + Live Option Chain")
+st.sidebar.info("Pro-Trader AI Mode (Live)")
 
-category = st.sidebar.radio("📁 Kya Dekhna Hai?", ["📊 Main Indices", "🏢 Sub-Sectors", "📈 Top Stocks", "🔍 Auto-Scanner", "⛓️ Option Chain"])
+# Option Chain yahan se hata diya hai taaki mobile app clean rahe
+category = st.sidebar.radio("📁 Kya Dekhna Hai?", ["📊 Main Indices", "🏢 Sub-Sectors", "📈 Top Stocks", "🔍 Auto-Scanner"])
 
 market_data = {
     "📊 Main Indices": {"NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK", "SENSEX": "^BSESN", "INDIA VIX": "^INDIAVIX"},
@@ -39,65 +39,7 @@ def calculate_indicators(data):
     data['Signal_Line'] = data['MACD'].ewm(span=9, adjust=False).mean()
     return data
 
-def get_nse_option_chain(symbol):
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Accept-Language": "en-US,en;q=0.9"
-    }
-    session = requests.Session()
-    try:
-        # Step 1: Get cookies from main page
-        session.get("https://www.nseindia.com", headers=headers, timeout=5)
-        # Step 2: Request API data
-        url = f"https://www.nseindia.com/api/option-chain-indices?symbol={symbol}"
-        response = session.get(url, headers=headers, timeout=5)
-        if response.status_code == 200:
-            return response.json()
-        return None
-    except:
-        return None
-
-if category == "⛓️ Option Chain":
-    st.title("⛓️ Advanced Option Chain (Live NSE Data)")
-    
-    oc_symbol = st.selectbox("Select Index:", ["NIFTY", "BANKNIFTY"])
-    
-    if st.button("🔄 Load Live Option Chain"):
-        with st.spinner("NSE Server se Live Data laya jaa raha hai..."):
-            oc_data = get_nse_option_chain(oc_symbol)
-            
-            if oc_data and 'records' in oc_data:
-                underlying_price = oc_data['records']['underlyingValue']
-                st.subheader(f"📊 {oc_symbol} Current Spot Price: ₹{underlying_price}")
-                
-                chain_data = oc_data['filtered']['data']
-                oc_list = []
-                
-                for item in chain_data:
-                    ce = item.get('CE', {})
-                    pe = item.get('PE', {})
-                    
-                    oc_list.append({
-                        "Call OI": ce.get('openInterest', 0),
-                        "Call Chg OI": ce.get('changeinOpenInterest', 0),
-                        "Call LTP": ce.get('lastPrice', 0),
-                        "STRIKE": item.get('strikePrice', 0),
-                        "Put LTP": pe.get('lastPrice', 0),
-                        "Put Chg OI": pe.get('changeinOpenInterest', 0),
-                        "Put OI": pe.get('openInterest', 0)
-                    })
-                
-                df_oc = pd.DataFrame(oc_list)
-                
-                # Format table to look like professional terminal
-                st.dataframe(df_oc.style.background_gradient(subset=['Call OI', 'Put OI'], cmap='Blues'), use_container_width=True)
-                
-                st.info("💡 **Pro Tip:** Jis strike par Call OI sabse zyada ho, woh Strong Resistance (Rukaawat) hai. Aur jahan Put OI sabse zyada ho, woh Strong Support hai.")
-            else:
-                st.error("⚠️ NSE server ne block kar diya ya data nahi bheja. Thodi der baad try karein ya apni internet setting check karein.")
-
-elif category == "🔍 Auto-Scanner":
+if category == "🔍 Auto-Scanner":
     st.title("🤖 Pro-AI Stock Scanner (Triple Filtered)")
     st.write("Yeh bot ek Professional Trader ki tarah sochta hai. Yeh tabhi signal dega jab **EMA, RSI, aur MACD teeno ek sath agree karenge**.")
     
