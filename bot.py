@@ -27,8 +27,8 @@ try:
     data = yf.download(ticker_symbol, period="1d", interval="5m")
     
     if not data.empty:
-        # Puraani library error na de isliye .item() use kiya hai
-        current_price = float(data['Close'].iloc[-1])
+        # Error fix: to_numpy() ensures we get a clean number, not a Series
+        current_price = float(data['Close'].to_numpy()[-1])
         
         st.metric(label=f"{index_choice} Current Price", value=f"₹{current_price:.2f}")
         st.success("✅ Live Market Data Loaded Successfully!")
