@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
-import plotly.graph_objects as go
 import warnings
 
 warnings.filterwarnings("ignore")
@@ -23,25 +22,62 @@ ticker_symbol = ticker_map[index_choice]
 st.subheader(f"📊 Live Market Status: {index_choice}")
 
 try:
-    # Safe aur clean tareeka live data laane ka
     ticker_data = yf.Ticker(ticker_symbol)
-    data = ticker_data.history(period="1d", interval="5m")
+    # Hum 5 din ka data le rahe hain taaki Indicators sahi se calculate ho sakein
+    data = ticker_data.history(period="5d", interval="5m")
     
     if not data.empty:
-        # Seedha aakhri (latest) price nikalna
+        # --- AI TRADING LOGIC (Indicators) ---
+        # 1. EMA (Exponential Moving Average) Calculation
+        data['EMA_9'] = data['Close'].ewm(span=9, adjust=False).mean()
+        data['EMA_21'] = data['Close'].ewm(span=21, adjust=False).mean()
+        
+        # 2. RSI (Relative Strength Index) Calculation
+        delta = data['Close'].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+        rs = gain / loss
+        data['RSI'] = 100 - (100 / (1 + rs))
+        
+        # Latest data values nikalna
         current_price = float(data['Close'].iloc[-1])
+        ema_9_val = float(data['EMA_9'].iloc[-1])
+        ema_21_val = float(data['EMA_21'].iloc[-1])
+        rsi_val = float(data['RSI'].iloc[-1])
         
         st.metric(label=f"{index_choice} Current Price", value=f"₹{current_price:.2f}")
-        st.success("✅ Live Market Data Loaded Successfully!")
+        
+        # --- SIGNAL GENERATOR ---
+        if ema_9_val > ema_21_val and rsi_val > 55:
+            trend_text = "🟢 Bullish (Uptrend)"
+            action_text = "🚀 BUY CALL OPTION (CE)"
+            action_color = "success"
+        elif ema_9_val < ema_21_val and rsi_val < 45:
+            trend_text = "🔴 Bearish (Downtrend)"
+            action_text = "📉 BUY PUT OPTION (PE)"
+            action_color = "error"
+        else:
+            trend_text = "🟡 Sideways / Choppy"
+            action_text = "⏳ WAIT (No Trade Zone)"
+            action_color = "warning"
         
         st.markdown("---")
         st.header("🎯 AI Trading Signals")
         
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         with col1:
-            st.info("💡 **Market Trend:** Bot abhi data analyze kar raha hai...")
+            st.info(f"💡 **Market Trend:** {trend_text}")
         with col2:
-            st.warning("⚡ **Action:** Abhi koi entry nahi ban rahi. Wait karein.")
+            if action_color == "success":
+                st.success(f"⚡ **Action:** {action_text}")
+            elif action_color == "error":
+                st.error(f"⚡ **Action:** {action_text}")
+            else:
+                st.warning(f"⚡ **Action:** {action_text}")
+        with col3:
+            st.metric(label="RSI (Momentum)", value=f"{rsi_val:.1f}")
+
+        st.caption(f"Technical Details: 9 EMA = {ema_9_val:.2f} | 21 EMA = {ema_21_val:.2f}")
             
     else:
         st.warning("Market data load ho raha hai...")
@@ -50,4 +86,4 @@ except Exception as e:
     st.error(f"Data laane mein error aaya: {e}")
 
 st.markdown("---")
-st.write("Agla Step: Hum yahan Options ke Greeks aur PCR (Put-Call Ratio) ka data add karenge.")
+st.caption("Disclaimer: Yeh signals algo analysis ke basis par hain. Groww mein trade lene se pehle hamesha apna Stop-Loss (SL) zaroor lagayein.")
