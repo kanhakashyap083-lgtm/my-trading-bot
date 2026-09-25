@@ -4,3 +4,4 @@ pandas
 ta
 plotly
 dhanhq
+streamlit-autorefresh
