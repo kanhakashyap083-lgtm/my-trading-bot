@@ -10,10 +10,8 @@ from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="Pro-Trader Ultimate AI", layout="wide", page_icon="👑")
-# Auto Scan - Har 2 minute me refresh
 st_autorefresh(interval=120000, limit=10000, key="mega_pro_refresh") 
 
-# --- TELEGRAM SETUP ---
 TELEGRAM_TOKEN = "8657774899:AAGKqx2_TgaoYAbUljSAXt5l9BzL_cnyCPE"
 TELEGRAM_CHAT_ID = "8900320752"
 
@@ -25,7 +23,6 @@ def send_telegram_alert(message):
 def play_sound_alarm():
     st.markdown("""<audio autoplay><source src="https://www.soundjay.com/buttons/sounds/beep-07a.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
 
-# 🚨 ALL SECTORS MEGA MASTER LIST 🚨
 mega_stock_list = {
     "NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK", "SENSEX": "^BSESN",
     "HAL (Defence)": "HAL.NS", "BEL (Defence)": "BEL.NS", "MAZAGON DOCK": "MAZDOCK.NS", 
@@ -90,15 +87,12 @@ def get_nse_option_data(symbol):
     except: pass
     return None
 
-# ================= APP UI START =================
 st.title("👑 Pro-Trader Master AI")
 st.sidebar.title("⚙️ Settings")
 timeframe_mode = st.sidebar.radio("⏱️ Strategy:", ["Intraday (15 Min)", "Swing (1 Day)"])
 
-# 📁 YAHAN FOLDERS (TABS) BANAYE GAYE HAIN
 tab1, tab2, tab3 = st.tabs(["🔍 Stocks Auto-Scanner", "📊 Options Pro-Radar", "📓 Live Scoreboard"])
 
-# FOLDER 1: STOCKS SCANNER
 with tab1:
     st.subheader("📈 All-India Market Scanner")
     vix, nifty_trend = get_market_health()
@@ -110,10 +104,13 @@ with tab1:
         st.metric("Market Time Zone", current_time.strftime("%I:%M %p"), "🚫 Trap Time" if current_time.hour == 9 and current_time.minute < 30 else "✅ Safe Time")
         
     st.divider()
+    # Updated UI to show Liquidity Check is active
+    st.markdown("**6-Layer AI Checking:** ✅ Breakout | ✅ Trend | ✅ RSI | ✅ Whale Volume | ✅ Broad Market Align | 💧 **High Liquidity Only**")
+    
     scan_period = "10d" if timeframe_mode == "Intraday (15 Min)" else "100d"
     scan_interval = "15m" if timeframe_mode == "Intraday (15 Min)" else "1d"
     
-    with st.spinner(f"X-Ray Scanning {len(mega_stock_list)} Stocks..."):
+    with st.spinner(f"X-Ray Scanning {len(mega_stock_list)} Stocks with Liquidity Filter..."):
         results = []
         for name, ticker_symbol in mega_stock_list.items():
             try:
@@ -126,15 +123,23 @@ with tab1:
                     upper_bb, lower_bb = sma_20 + (std_20 * 2), sma_20 - (std_20 * 2)
                     ema_9, ema_21 = data['Close'].ewm(span=9).mean().iloc[-1], data['Close'].ewm(span=21).mean().iloc[-1]
                     rsi_14 = calculate_rsi(data).iloc[-1]
-                    volume_spike = curr_vol > (data['Volume'].rolling(window=20).mean().iloc[-1] * 1.5)
+                    
+                    avg_vol_20 = data['Volume'].rolling(window=20).mean().iloc[-1]
+                    volume_spike = curr_vol > (avg_vol_20 * 1.5)
+                    
+                    # --- NEW: PRO LIQUIDITY CHECK ---
+                    avg_turnover = avg_vol_20 * curr
+                    is_liquid = (avg_vol_20 > 500000) or (avg_turnover > 100000000) # 5 Lakh shares OR 10 Crore Rupees Turnover
+                    
                     atr = (data['High'].iloc[-1] - data['Low'].iloc[-1]) * 1.5
                     is_index = "NIFTY" in name or "SENSEX" in name
                     
                     trend_aligned_buy = True if "BULLISH" in nifty_trend or timeframe_mode == "Swing (1 Day)" else False
                     trend_aligned_sell = True if "BEARISH" in nifty_trend or timeframe_mode == "Swing (1 Day)" else False
                     
-                    bullish = (curr > upper_bb) and (ema_9 > ema_21) and (45 < rsi_14 < 75) and (volume_spike or is_index) and trend_aligned_buy
-                    bearish = (curr < lower_bb) and (ema_9 < ema_21) and (25 < rsi_14 < 55) and (volume_spike or is_index) and trend_aligned_sell
+                    # 6 Layers Combined (including is_liquid)
+                    bullish = (curr > upper_bb) and (ema_9 > ema_21) and (45 < rsi_14 < 75) and (volume_spike or is_index) and trend_aligned_buy and (is_liquid or is_index)
+                    bearish = (curr < lower_bb) and (ema_9 < ema_21) and (25 < rsi_14 < 55) and (volume_spike or is_index) and trend_aligned_sell and (is_liquid or is_index)
                     
                     tgt_pts, sl_pts = (100, 50) if is_index else (atr * (4.0 if timeframe_mode == "Intraday (15 Min)" else 8.0), atr * (2.0 if timeframe_mode == "Intraday (15 Min)" else 4.0))
                     
@@ -144,15 +149,14 @@ with tab1:
                         results.append({"Stock": name, "Action": action, "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_pts if bullish else curr - tgt_pts:.2f}", "SL": f"₹{curr - sl_pts if bullish else curr + sl_pts:.2f}"})
                         if is_new:
                             play_sound_alarm()
-                            send_telegram_alert(f"🚀 {action}: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr + tgt_pts if bullish else curr - tgt_pts:.2f}\nSL: ₹{curr - sl_pts if bullish else curr + sl_pts:.2f}")
+                            send_telegram_alert(f"🚀 {action}: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr + tgt_pts if bullish else curr - tgt_pts:.2f}\nSL: ₹{curr - sl_pts if bullish else curr + sl_pts:.2f}\n💧 High Liquidity Verified!")
             except: pass
         if results: st.dataframe(pd.DataFrame(results), use_container_width=True)
         else: st.warning("⚖️ Scanning Complete. Operator abhi shant hai.")
 
-# FOLDER 2: OPTIONS RADAR
 with tab2:
     st.subheader("🏦 Options Smart-Money Radar")
-    selected_index = st.selectbox("Select Index:", ["NIFTY", "BANKNIFTY"])
+    selected_index = st.selectbox("Select Index:", ["NIFTY", "BANKNIFTY", "FINNIFTY", "MIDCPNIFTY"])
     
     with st.spinner("Fetching Live NSE Option Chain Data..."):
         data = get_nse_option_data(selected_index)
@@ -180,7 +184,6 @@ with tab2:
             elif pcr < 0.8: st.warning("📉 **BEARISH GRIP:** Buy PE near Resistance.")
         else: st.error("⚠️ NSE Server blocked direct request. Try during Live Market hours.")
 
-# FOLDER 3: LIVE SCOREBOARD
 with tab3:
     st.subheader("🎯 Live Scoreboard (Zero-Risk Tracker)")
     if os.path.exists(TRADE_FILE):
