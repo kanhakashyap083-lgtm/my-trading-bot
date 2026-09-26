@@ -23,6 +23,11 @@ def send_telegram_alert(message):
     except:
         pass
 
+# --- 🚀 CONNECTION TEST (Sirf ek baar bajega jab app khulegi) ---
+if "telegram_tested" not in st.session_state:
+    send_telegram_alert("✅ System Test: Crypto God-Mode AI is Online and Scanning! 🚀")
+    st.session_state["telegram_tested"] = True
+
 st.sidebar.title("⚡ Crypto Terminal Ultra")
 app_mode = st.sidebar.radio("📁 Menu:", ["🔍 Crypto Auto-Scanner", "📓 Tracker (TSL Zero-Risk)"])
 
@@ -39,7 +44,7 @@ def save_trade(coin, symbol, action, entry, target, sl):
     new_trade = pd.DataFrame([{"Coin": coin, "Symbol": symbol, "Action": action, "Entry": round(entry, 4), "Target": round(target, 4), "SL": round(sl, 4), "Status": "⏳ Active"}])
     df = pd.concat([df, new_trade], ignore_index=True)
     df.to_csv(TRADE_FILE, index=False)
-    return True # True matlab naya trade save hua hai
+    return True 
 
 if app_mode == "🔍 Crypto Auto-Scanner":
     st.title("🪙 Crypto AI Scanner (Multi-Timeframe & Telegram)")
