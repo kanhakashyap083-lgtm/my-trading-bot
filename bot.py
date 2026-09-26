@@ -9,7 +9,7 @@ from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
 st.set_page_config(page_title="All India Master Scanner", layout="wide", page_icon="🔥")
-st_autorefresh(interval=120000, limit=1000, key="mega_refresh") # 2 min refresh for heavy scanning
+st_autorefresh(interval=120000, limit=1000, key="mega_refresh") # 2 min refresh
 
 TELEGRAM_TOKEN = "8657774899:AAGKqx2_TgaoYAbUljSAXt5l9BzL_cnyCPE"
 TELEGRAM_CHAT_ID = "8900320752"
@@ -23,32 +23,27 @@ st.sidebar.title("⚡ All India Mega AI")
 app_mode = st.sidebar.radio("📁 Menu:", ["🔍 Mega Market Scanner", "📓 Tracker (Scoreboard & TSL)"])
 timeframe_mode = st.sidebar.radio("⏱️ Strategy:", ["Intraday (15 Min)", "Swing (1 Day)"])
 
-# 🚨 ALL SECTORS MASTER LIST 🚨
+# 🚨 ALL SECTORS MEGA MASTER LIST 🚨
 mega_stock_list = {
-    # INDICES
-    "NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK",
-    # DEFENCE & RAILWAY
-    "HAL (Defence)": "HAL.NS", "BEL (Defence)": "BEL.NS", "IRFC (Railway)": "IRFC.NS", "RVNL (Railway)": "RVNL.NS",
-    # POWER & ENERGY
-    "NTPC (Power)": "NTPC.NS", "TATA POWER": "TATAPOWER.NS", "ONGC (Oil)": "ONGC.NS", "RELIANCE (Oil/Retail)": "RELIANCE.NS",
-    # IT & TECH
-    "TCS (IT)": "TCS.NS", "INFOSYS (IT)": "INFY.NS", "WIPRO (IT)": "WIPRO.NS", "WIPRO (IT)": "WIPRO.NS",
-    # BANKS & FINANCE
-    "HDFC BANK": "HDFCBANK.NS", "SBI (Bank)": "SBIN.NS", "ICICI BANK": "ICICIBANK.NS", "BAJAJ FINANCE": "BAJFINANCE.NS",
-    # AUTO & ANCILLARY
-    "TATA MOTORS": "TATAMOTORS.NS", "MARUTI": "MARUTI.NS", "M&M": "M&M.NS", "MRF (Tyre)": "MRF.NS",
-    # FMCG & SUGAR & AGRICULTURE
-    "ITC (FMCG/Agri)": "ITC.NS", "HUL (FMCG)": "HINDUNILVR.NS", "BALRAMPUR CHINI (Sugar)": "BALRAMCHIN.NS", "UPL (Agri)": "UPL.NS",
-    # PAINTS, CEMENT & REAL ESTATE
-    "ASIAN PAINTS": "ASIANPAINT.NS", "ULTRATECH (Cement)": "ULTRACEMCO.NS", "DLF (Real Estate)": "DLF.NS",
-    # METALS & CHEMICALS
-    "TATA STEEL": "TATASTEEL.NS", "JSW STEEL": "JSWSTEEL.NS", "SRF (Chemical)": "SRF.NS", "PIDILITE (Chemical)": "PIDILITIND.NS",
-    # PHARMA & HEALTHCARE
-    "SUN PHARMA": "SUNPHARMA.NS", "CIPLA": "CIPLA.NS", "APOLLO HOSPITALS": "APOLLOHOSP.NS",
-    # MEDIA, TELECOM & AVIATION
-    "ZEEL (Media)": "ZEEL.NS", "BHARTI AIRTEL": "BHARTIARTL.NS", "INDIGO (Aviation)": "INDIGO.NS",
-    # CONSUMER, APPAREL & FOOTWEAR
-    "TITAN (Jewellery)": "TITAN.NS", "TRENT (Apparel)": "TRENT.NS", "BATA (Footwear)": "BATAINDIA.NS", "ZOMATO (E-comm)": "ZOMATO.NS"
+    "NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK", "SENSEX": "^BSESN",
+    "HAL (Defence)": "HAL.NS", "BEL (Defence)": "BEL.NS", "MAZAGON DOCK": "MAZDOCK.NS", "BDL": "BDL.NS",
+    "IRFC (Rail)": "IRFC.NS", "RVNL (Rail)": "RVNL.NS", "IRCON": "IRCON.NS", "TITAGARH": "TITAGARH.NS",
+    "NTPC": "NTPC.NS", "TATA POWER": "TATAPOWER.NS", "POWERGRID": "POWERGRID.NS", "ADANI GREEN": "ADANIGREEN.NS", "GAIL (Gas)": "GAIL.NS",
+    "TCS": "TCS.NS", "INFOSYS": "INFY.NS", "WIPRO": "WIPRO.NS", "HCL TECH": "HCLTECH.NS", "TECH MAHINDRA": "TECHM.NS",
+    "HDFC BANK": "HDFCBANK.NS", "SBI": "SBIN.NS", "ICICI BANK": "ICICIBANK.NS", "BAJAJ FINANCE": "BAJFINANCE.NS", "LIC (Insurance)": "LICI.NS",
+    "TATA MOTORS": "TATAMOTORS.NS", "MARUTI": "MARUTI.NS", "M&M": "M&M.NS", "MRF (Tyre)": "MRF.NS", "BOSCH (Ancillary)": "BOSCHLTD.NS",
+    "ITC": "ITC.NS", "HUL": "HINDUNILVR.NS", "NESTLE": "NESTLEIND.NS", "BRITANNIA": "BRITANNIA.NS", "VARUN BEVERAGES": "VBL.NS",
+    "BALRAMPUR CHINI": "BALRAMCHIN.NS", "SHREE RENUKA (Sugar)": "RENUKA.NS", "UPL (Agri)": "UPL.NS", "COROMANDEL": "COROMANDEL.NS",
+    "ASIAN PAINTS": "ASIANPAINT.NS", "BERGER PAINTS": "BERGEPAINT.NS", "ULTRATECH CEMENT": "ULTRACEMCO.NS", "AMBUJA CEMENTS": "AMBUJACEM.NS",
+    "ASTRAL (Plastic)": "ASTRAL.NS", "SUPREME IND": "SUPREMEIND.NS", "PIDILITE": "PIDILITIND.NS", "SRF (Chemical)": "SRF.NS", "TATA CHEMICALS": "TATACHEM.NS",
+    "DLF (Real Estate)": "DLF.NS", "GODREJ PROP": "GODREJPROP.NS", "MACROTECH (LODHA)": "LODHA.NS", "EMBASSY REIT": "EMBASSY.NS",
+    "SUN PHARMA": "SUNPHARMA.NS", "CIPLA": "CIPLA.NS", "APOLLO HOSPITALS": "APOLLOHOSP.NS", "DR REDDYS": "DRREDDY.NS",
+    "TATA STEEL": "TATASTEEL.NS", "JSW STEEL": "JSWSTEEL.NS", "COAL INDIA (Mining)": "COALINDIA.NS", "HINDALCO": "HINDALCO.NS",
+    "BHARTI AIRTEL": "BHARTIARTL.NS", "RELIANCE (Jio/Retail)": "RELIANCE.NS", "ZEEL (Media)": "ZEEL.NS", "PVR INOX": "PVRINOX.NS",
+    "INDIGO (Aviation)": "INDIGO.NS", "CONCOR (Logistics)": "CONCOR.NS", "DELHIVERY": "DELHIVERY.NS", "COCHIN SHIPYARD": "COCHINSHIP.NS",
+    "HAVELLS": "HAVELLS.NS", "POLYCAB": "POLYCAB.NS", "DIXON TECH (Electronics)": "DIXON.NS",
+    "TITAN (Jewellery)": "TITAN.NS", "TRENT (Apparel)": "TRENT.NS", "BATA INDIA (Footwear)": "BATAINDIA.NS", "D-MART (Retail)": "DMART.NS",
+    "ZOMATO": "ZOMATO.NS", "PAYTM": "PAYTM.NS", "NYKAA": "NYKAA.NS", "PB FINTECH (PolicyBazaar)": "POLICYBZR.NS"
 }
 
 TRADE_FILE = f"mega_trades_{date.today()}.csv"
@@ -94,7 +89,7 @@ if app_mode == "🔍 Mega Market Scanner":
                     
                     atr = (data['High'].iloc[-1] - data['Low'].iloc[-1]) * 1.5
                     
-                    if "NIFTY" in name:
+                    if "NIFTY" in name or "SENSEX" in name:
                         tgt_pts, sl_pts = 100, 50
                     else:
                         tgt_multiplier = 4.0 if timeframe_mode == "Intraday (15 Min)" else 8.0
