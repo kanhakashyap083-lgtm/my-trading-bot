@@ -8,7 +8,7 @@ from datetime import date
 from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
-st.set_page_config(page_title="Nifty God-Mode AI", layout="wide", page_icon="📈")
+st.set_page_config(page_title="India Market God-Mode AI", layout="wide", page_icon="📈")
 st_autorefresh(interval=60000, limit=1000, key="india_refresh")
 
 # --- TELEGRAM SETUP ---
@@ -22,14 +22,32 @@ def send_telegram_alert(message):
         requests.post(url, json=payload)
     except: pass
 
-if "india_telegram_tested" not in st.session_state:
-    send_telegram_alert("✅ System Test: Indian Market (Nifty) God-Mode AI is Online! 🚀")
-    st.session_state["india_telegram_tested"] = True
-
-st.sidebar.title("⚡ Indian Market AI")
+st.sidebar.title("⚡ All India Market AI")
 app_mode = st.sidebar.radio("📁 Menu:", ["🔍 Market Auto-Scanner", "📓 Tracker (Scoreboard & TSL)"])
 
-stock_list = {"NIFTY 50": "^NSEI", "BANK NIFTY": "^NSEBANK", "RELIANCE": "RELIANCE.NS", "HDFC BANK": "HDFCBANK.NS"}
+# 🚨 यहाँ मैंने Sensex, Nifty 50 और सारे बड़े स्टॉक्स वापस जोड़ दिए हैं 🚨
+# आप अपने पुराने कोड से बचे हुए स्टॉक्स भी इसी लिस्ट में कॉपी-पेस्ट कर सकते हैं!
+stock_list = {
+    "NIFTY 50": "^NSEI", 
+    "BANK NIFTY": "^NSEBANK", 
+    "SENSEX": "^BSESN",
+    "RELIANCE": "RELIANCE.NS", 
+    "HDFC BANK": "HDFCBANK.NS",
+    "TCS": "TCS.NS",
+    "ICICI BANK": "ICICIBANK.NS",
+    "INFY": "INFY.NS",
+    "SBI": "SBIN.NS",
+    "BHARTI AIRTEL": "BHARTIARTL.NS",
+    "ITC": "ITC.NS",
+    "L&T": "LT.NS",
+    "BAJAJ FINANCE": "BAJFINANCE.NS",
+    "HUL": "HINDUNILVR.NS",
+    "AXIS BANK": "AXISBANK.NS",
+    "TATA MOTORS": "TATAMOTORS.NS",
+    "TATA STEEL": "TATASTEEL.NS",
+    "MARUTI": "MARUTI.NS"
+}
+
 TRADE_FILE = f"india_trades_{date.today()}.csv"
 
 def save_trade(name, symbol, action, entry, target, sl):
@@ -45,9 +63,9 @@ def save_trade(name, symbol, action, entry, target, sl):
     return True
 
 if app_mode == "🔍 Market Auto-Scanner":
-    st.title("📈 Nifty & BankNifty Auto-Scanner")
+    st.title("📈 A-to-Z India Market Auto-Scanner")
     
-    with st.spinner("Market Trend & Smart Money Scanning..."):
+    with st.spinner("Scanning ALL Stocks & Indices..."):
         results = []
         for name, ticker_symbol in stock_list.items():
             try:
@@ -62,29 +80,33 @@ if app_mode == "🔍 Market Auto-Scanner":
                     bullish = (curr > upper_band)
                     bearish = (curr < lower_band)
                     
-                    tgt_pts = 100 if "NIFTY" in name else 20
-                    sl_pts = 50 if "NIFTY" in name else 10
+                    # Target & SL Logic (Indices ke liye bada, Stocks ke liye chota)
+                    if "NIFTY" in name or "SENSEX" in name:
+                        tgt_pts, sl_pts = 100, 50
+                    else:
+                        atr = (data['High'].iloc[-1] - data['Low'].iloc[-1]) * 1.5
+                        tgt_pts, sl_pts = atr * 4.0, atr * 2.0
                     
                     if bullish:
-                        is_new = save_trade(name, ticker_symbol, "🟢 BUY (CE)", curr, curr + tgt_pts, curr - sl_pts)
-                        results.append({"Stock": name, "Action": "🟢 BUY (CE)", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_pts:.2f}", "SL": f"₹{curr - sl_pts:.2f}"})
+                        is_new = save_trade(name, ticker_symbol, "🟢 BUY", curr, curr + tgt_pts, curr - sl_pts)
+                        results.append({"Stock": name, "Action": "🟢 BUY", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_pts:.2f}", "SL": f"₹{curr - sl_pts:.2f}"})
                         if is_new:
-                            send_telegram_alert(f"🚀 NEW BUY SIGNAL (CE): {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr + tgt_pts:.2f}\nSL: ₹{curr - sl_pts:.2f}")
+                            send_telegram_alert(f"🚀 BUY SIGNAL: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr + tgt_pts:.2f}\nSL: ₹{curr - sl_pts:.2f}")
                     elif bearish:
-                        is_new = save_trade(name, ticker_symbol, "🔴 SELL (PE)", curr, curr - tgt_pts, curr + sl_pts)
-                        results.append({"Stock": name, "Action": "🔴 SELL (PE)", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr - tgt_pts:.2f}", "SL": f"₹{curr + sl_pts:.2f}"})
+                        is_new = save_trade(name, ticker_symbol, "🔴 SELL", curr, curr - tgt_pts, curr + sl_pts)
+                        results.append({"Stock": name, "Action": "🔴 SELL", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr - tgt_pts:.2f}", "SL": f"₹{curr + sl_pts:.2f}"})
                         if is_new:
-                            send_telegram_alert(f"📉 NEW SELL SIGNAL (PE): {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr - tgt_pts:.2f}\nSL: ₹{curr + sl_pts:.2f}")
+                            send_telegram_alert(f"📉 SELL SIGNAL: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr - tgt_pts:.2f}\nSL: ₹{curr + sl_pts:.2f}")
             except: continue
         
         if results:
             st.success(f"🔥 {len(results)} God-Mode Trades Found!")
             st.dataframe(pd.DataFrame(results), use_container_width=True)
         else:
-            st.warning("⚖️ Market Closed ya Side-ways hai. AI wait kar raha hai...")
+            st.warning("⚖️ Scanning... Waiting for perfect setup.")
 
 elif app_mode == "📓 Tracker (Scoreboard & TSL)":
-    st.title("🎯 Indian Market Scoreboard (0-Risk)")
+    st.title("🎯 All India Market Scoreboard (0-Risk)")
     
     if os.path.exists(TRADE_FILE):
         df = pd.read_csv(TRADE_FILE)
@@ -100,27 +122,27 @@ elif app_mode == "📓 Tracker (Scoreboard & TSL)":
                         halfway = entry + (target - entry) * 0.5
                         if curr_price >= target: 
                             df.at[index, 'Status'] = "🏆 Target Hit"
-                            send_telegram_alert(f"🏆 TARGET HIT: {row['Stock']} (CE) ne profit book kar liya at ₹{curr_price:.2f}!")
+                            send_telegram_alert(f"🏆 TARGET HIT: {row['Stock']} (BUY) - Profit booked at ₹{curr_price:.2f}!")
                         elif curr_price <= float(row['SL']): 
                             df.at[index, 'Status'] = "💔 SL Hit"
                         elif curr_price >= halfway and float(row['SL']) < entry:
                             df.at[index, 'SL'] = entry
                             df.at[index, 'Status'] = "🚀 Trailing (0 Risk)"
                             if old_status != "🚀 Trailing (0 Risk)":
-                                send_telegram_alert(f"🛡️ ZERO RISK MODE: {row['Stock']} (CE) SL ab Entry price par aa gaya hai!")
+                                send_telegram_alert(f"🛡️ ZERO RISK: {row['Stock']} (BUY) SL moved to Entry!")
                                 
                     elif "SELL" in row['Action']:
                         halfway = entry - (entry - target) * 0.5
                         if curr_price <= target: 
                             df.at[index, 'Status'] = "🏆 Target Hit"
-                            send_telegram_alert(f"🏆 TARGET HIT: {row['Stock']} (PE) ne profit book kar liya at ₹{curr_price:.2f}!")
+                            send_telegram_alert(f"🏆 TARGET HIT: {row['Stock']} (SELL) - Profit booked at ₹{curr_price:.2f}!")
                         elif curr_price >= float(row['SL']): 
                             df.at[index, 'Status'] = "💔 SL Hit"
                         elif curr_price <= halfway and float(row['SL']) > entry:
                             df.at[index, 'SL'] = entry
                             df.at[index, 'Status'] = "🚀 Trailing (0 Risk)"
                             if old_status != "🚀 Trailing (0 Risk)":
-                                send_telegram_alert(f"🛡️ ZERO RISK MODE: {row['Stock']} (PE) SL ab Entry price par aa gaya hai!")
+                                send_telegram_alert(f"🛡️ ZERO RISK: {row['Stock']} (SELL) SL moved to Entry!")
                 except: continue
         df.to_csv(TRADE_FILE, index=False)
         
@@ -132,4 +154,4 @@ elif app_mode == "📓 Tracker (Scoreboard & TSL)":
         display_df = df.drop(columns=['Symbol'])
         st.dataframe(display_df, use_container_width=True)
     else:
-        st.info("📉 Abhi tak koi naya trade nahi mila hai.")
+        st.info("📉 No trades active yet.")
