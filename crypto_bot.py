@@ -1,15 +1,17 @@
 import streamlit as st
 import pandas as pd
 import yfinance as yf
+import requests
 import warnings
 import os
-import requests
-from datetime import date
+from datetime import date, datetime
+import pytz
 from streamlit_autorefresh import st_autorefresh
 
 warnings.filterwarnings("ignore")
-st.set_page_config(page_title="Crypto God-Mode AI Ultra", layout="wide", page_icon="🪙")
-st_autorefresh(interval=60000, limit=1000, key="crypto_refresh")
+st.set_page_config(page_title="Crypto Pro-Trader AI", layout="wide", page_icon="🪙")
+# Auto Scan - Har 3 minute me refresh (Crypto API limits se bachne ke liye)
+st_autorefresh(interval=180000, limit=10000, key="crypto_refresh") 
 
 # --- TELEGRAM SETUP ---
 TELEGRAM_TOKEN = "8657774899:AAGKqx2_TgaoYAbUljSAXt5l9BzL_cnyCPE"
@@ -17,122 +19,155 @@ TELEGRAM_CHAT_ID = "8900320752"
 
 def send_telegram_alert(message):
     try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-        payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-        requests.post(url, json=payload)
-    except:
-        pass
+        requests.post(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage", json={"chat_id": TELEGRAM_CHAT_ID, "text": message})
+    except: pass
 
-# --- 🚀 CONNECTION TEST (Sirf ek baar bajega jab app khulegi) ---
-if "telegram_tested" not in st.session_state:
-    send_telegram_alert("✅ System Test: Crypto God-Mode AI is Online and Scanning! 🚀")
-    st.session_state["telegram_tested"] = True
+def play_sound_alarm():
+    st.markdown("""<audio autoplay><source src="https://www.soundjay.com/buttons/sounds/beep-07a.mp3" type="audio/mpeg"></audio>""", unsafe_allow_html=True)
 
-st.sidebar.title("⚡ Crypto Terminal Ultra")
-app_mode = st.sidebar.radio("📁 Menu:", ["🔍 Crypto Auto-Scanner", "📓 Tracker (TSL Zero-Risk)"])
+# 🚨 TOP GLOBAL CRYPTO LIST (USDT/USD PAIRS) 🚨
+crypto_list = {
+    "Bitcoin (King)": "BTC-USD",
+    "Ethereum (Smart Contracts)": "ETH-USD",
+    "Solana (High Speed)": "SOL-USD",
+    "Binance Coin (Exchange)": "BNB-USD",
+    "Ripple (Payments)": "XRP-USD",
+    "Dogecoin (Meme)": "DOGE-USD",
+    "Cardano (DeFi)": "ADA-USD",
+    "Avalanche (Layer 1)": "AVAX-USD",
+    "Chainlink (Oracles)": "LINK-USD",
+    "Polkadot (Web3)": "DOT-USD",
+    "Polygon (Layer 2)": "MATIC-USD",
+    "Shiba Inu (Meme)": "SHIB-USD",
+    "Litecoin (Payments)": "LTC-USD",
+    "Bitcoin Cash": "BCH-USD",
+    "Uniswap (DEX)": "UNI-USD"
+}
 
-crypto_list = {"BITCOIN": "BTC-USD", "ETHEREUM": "ETH-USD", "SOLANA": "SOL-USD", "BINANCE COIN": "BNB-USD", "RIPPLE": "XRP-USD", "DOGECOIN": "DOGE-USD"}
 TRADE_FILE = f"crypto_trades_{date.today()}.csv"
 
-def save_trade(coin, symbol, action, entry, target, sl):
+def save_trade(name, symbol, action, entry, target, sl, strategy):
     if os.path.exists(TRADE_FILE):
         df = pd.read_csv(TRADE_FILE)
-        if not df[(df['Coin'] == coin) & (df['Status'].str.contains('Active|Trailing'))].empty: return False
+        if not df[(df['Coin'] == name) & (df['Status'].str.contains('Active|Trailing'))].empty: return False
     else:
-        df = pd.DataFrame(columns=["Coin", "Symbol", "Action", "Entry", "Target", "SL", "Status"])
+        df = pd.DataFrame(columns=["Coin", "Symbol", "Action", "Strategy", "Entry", "Target", "SL", "Status"])
     
-    new_trade = pd.DataFrame([{"Coin": coin, "Symbol": symbol, "Action": action, "Entry": round(entry, 4), "Target": round(target, 4), "SL": round(sl, 4), "Status": "⏳ Active"}])
+    new_trade = pd.DataFrame([{"Coin": name, "Symbol": symbol, "Action": action, "Strategy": strategy, "Entry": round(entry, 4), "Target": round(target, 4), "SL": round(sl, 4), "Status": "⏳ Active"}])
     df = pd.concat([df, new_trade], ignore_index=True)
     df.to_csv(TRADE_FILE, index=False)
-    return True 
+    return True
 
-if app_mode == "🔍 Crypto Auto-Scanner":
-    st.title("🪙 Crypto AI Scanner (Multi-Timeframe & Telegram)")
+def calculate_rsi(data, period=14):
+    delta = data['Close'].diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
+    rs = gain / loss
+    return 100 - (100 / (1 + rs))
+
+# --- CRYPTO MARKET HEALTH (BTC TREND) ---
+def get_btc_health():
+    try:
+        btc_data = yf.Ticker("BTC-USD").history(period="5d", interval="1h")
+        btc_ema9 = btc_data['Close'].ewm(span=9).mean().iloc[-1]
+        btc_ema21 = btc_data['Close'].ewm(span=21).mean().iloc[-1]
+        btc_trend = "🟢 BULLISH" if btc_ema9 > btc_ema21 else "🔴 BEARISH"
+        curr_price = btc_data['Close'].iloc[-1]
+        return btc_trend, curr_price
+    except: return "🟡 NEUTRAL", 0.0
+
+# ================= APP UI START =================
+st.title("🪙 Crypto Pro-Trader AI")
+st.sidebar.title("⚙️ Crypto Settings")
+timeframe_mode = st.sidebar.radio("⏱️ Strategy:", ["Scalping (15 Min)", "Swing (4 Hour)", "Long Term (1 Day)"])
+
+tab1, tab2 = st.tabs(["🔍 Global Crypto Scanner", "📓 Live Scoreboard"])
+
+with tab1:
+    st.subheader("📈 Top 15 Coins Whale Scanner")
+    btc_trend, btc_price = get_btc_health()
     
-    with st.spinner("Scanning Big Trends & Smart Money..."):
+    col1, col2, col3 = st.columns(3)
+    with col1: st.metric("Market King (Bitcoin) Trend", btc_trend)
+    with col2: st.metric("BTC Current Price", f"${btc_price:,.2f}")
+    with col3: st.metric("Market Status", "🌍 24/7 Open", "✅ Live")
+        
+    st.divider()
+    
+    if timeframe_mode == "Scalping (15 Min)":
+        scan_period, scan_interval = "5d", "15m"
+    elif timeframe_mode == "Swing (4 Hour)":
+        scan_period, scan_interval = "30d", "1h" # yfinance rarely supports 4h directly, using 1h for swing logic
+    else:
+        scan_period, scan_interval = "100d", "1d"
+    
+    with st.spinner(f"X-Ray Scanning {len(crypto_list)} Crypto Coins..."):
         results = []
         for name, ticker_symbol in crypto_list.items():
             try:
-                macro_data = yf.Ticker(ticker_symbol).history(period="10d", interval="1h")
-                macro_trend_up = macro_data['Close'].iloc[-1] > macro_data['Close'].ewm(span=50).mean().iloc[-1]
-                
-                data = yf.Ticker(ticker_symbol).history(period="5d", interval="15m")
-                if not data.empty:
+                data = yf.Ticker(ticker_symbol).history(period=scan_period, interval=scan_interval)
+                if len(data) > 30:
                     curr = float(data['Close'].iloc[-1])
+                    curr_vol = float(data['Volume'].iloc[-1])
+                    
                     sma_20 = data['Close'].rolling(window=20).mean().iloc[-1]
                     std_20 = data['Close'].rolling(window=20).std().iloc[-1]
-                    upper_band = sma_20 + (std_20 * 2)
-                    lower_band = sma_20 - (std_20 * 2)
+                    upper_bb, lower_bb = sma_20 + (std_20 * 2), sma_20 - (std_20 * 2)
                     
-                    bullish = macro_trend_up and (curr > upper_band)
-                    bearish = not macro_trend_up and (curr < lower_band)
+                    ema_9, ema_21 = data['Close'].ewm(span=9).mean().iloc[-1], data['Close'].ewm(span=21).mean().iloc[-1]
+                    rsi_14 = calculate_rsi(data).iloc[-1]
+                    
+                    # Crypto requires massive volume spikes (Whale entries)
+                    avg_vol_20 = data['Volume'].rolling(window=20).mean().iloc[-1]
+                    volume_spike = curr_vol > (avg_vol_20 * 1.8) # 80% spike for crypto
                     
                     atr = (data['High'].iloc[-1] - data['Low'].iloc[-1]) * 1.5
-                    sl_val, tgt_val = atr * 3.0, atr * 6.0 
                     
-                    if bullish:
-                        is_new = save_trade(name, ticker_symbol, "🟢 BUY", curr, curr + tgt_val, curr - sl_val)
-                        results.append({"Coin": name, "Action": "🟢 BUY", "Entry": f"${curr:.4f}", "Target": f"${curr + tgt_val:.4f}", "SL": f"${curr - sl_val:.4f}"})
+                    # Aligning with BTC Trend
+                    trend_aligned_buy = True if "BULLISH" in btc_trend else False
+                    trend_aligned_sell = True if "BEARISH" in btc_trend else False
+                    
+                    bullish = (curr > upper_bb) and (ema_9 > ema_21) and (40 < rsi_14 < 70) and volume_spike and trend_aligned_buy
+                    bearish = (curr < lower_bb) and (ema_9 < ema_21) and (30 < rsi_14 < 60) and volume_spike and trend_aligned_sell
+                    
+                    # Crypto RR Ratio (Slightly larger targets due to high volatility)
+                    tgt_multiplier = 4.0 if timeframe_mode == "Scalping (15 Min)" else 6.0
+                    sl_multiplier = 2.0 if timeframe_mode == "Scalping (15 Min)" else 3.0
+                    tgt_pts, sl_pts = atr * tgt_multiplier, atr * sl_multiplier
+                    
+                    if bullish or bearish:
+                        action = "🟢 BUY (LONG)" if bullish else "🔴 SELL (SHORT)"
+                        is_new = save_trade(name, ticker_symbol, action, curr, curr + tgt_pts if bullish else curr - tgt_pts, curr - sl_pts if bullish else curr + sl_pts, timeframe_mode)
+                        
+                        results.append({"Coin": name, "Action": action, "Entry": f"${curr:,.4f}", "Target": f"${curr + tgt_pts if bullish else curr - tgt_pts:,.4f}", "SL": f"${curr - sl_pts if bullish else curr + sl_pts:,.4f}"})
+                        
                         if is_new:
-                            send_telegram_alert(f"🚀 NEW BUY SIGNAL: {name}\nEntry: ${curr:.2f}\nTarget: ${curr + tgt_val:.2f}\nSL: ${curr - sl_val:.2f}")
-                    elif bearish:
-                        is_new = save_trade(name, ticker_symbol, "🔴 SELL", curr, curr - tgt_val, curr + sl_val)
-                        results.append({"Coin": name, "Action": "🔴 SELL", "Entry": f"${curr:.4f}", "Target": f"${curr - tgt_val:.4f}", "SL": f"${curr + sl_val:.4f}"})
-                        if is_new:
-                            send_telegram_alert(f"📉 NEW SELL SIGNAL: {name}\nEntry: ${curr:.2f}\nTarget: ${curr - tgt_val:.2f}\nSL: ${curr + sl_val:.2f}")
-            except: continue
-        
-        if results:
-            st.success(f"🔥 {len(results)} God-Mode Trades Found!")
-            st.dataframe(pd.DataFrame(results), use_container_width=True)
-        else:
-            st.warning("⚖️ High Accuracy Mode: Waiting for strong Whale volume...")
+                            play_sound_alarm()
+                            send_telegram_alert(f"🚀 CRYPTO {action}: {name}\nEntry: ${curr:,.4f}\nTarget: ${curr + tgt_pts if bullish else curr - tgt_pts:,.4f}\nSL: ${curr - sl_pts if bullish else curr + sl_pts:,.4f}\n📊 RSI: {rsi_14:.0f} | Whale Volume: Yes")
+            except: pass
+            
+        if results: st.dataframe(pd.DataFrame(results), use_container_width=True)
+        else: st.warning("⚖️ Scanning Complete. Crypto Whales abhi shant hain. AI wait kar raha hai.")
 
-elif app_mode == "📓 Tracker (TSL Zero-Risk)":
-    st.title("🎯 Crypto Trailing Scoreboard")
-    
+with tab2:
+    st.subheader("🎯 Live Scoreboard (Zero-Risk Crypto Tracker)")
     if os.path.exists(TRADE_FILE):
         df = pd.read_csv(TRADE_FILE)
         for index, row in df.iterrows():
             if "Active" in row['Status'] or "Trailing" in row['Status']:
                 try:
                     curr_price = float(yf.Ticker(row['Symbol']).history(period="1d", interval="1m")['Close'].iloc[-1])
-                    entry = float(row['Entry'])
-                    target = float(row['Target'])
-                    old_status = row['Status']
+                    entry, target, sl = float(row['Entry']), float(row['Target']), float(row['SL'])
+                    halfway = entry + (target - entry) * 0.5 if "BUY" in row['Action'] else entry - (entry - target) * 0.5
                     
-                    if "BUY" in row['Action']:
-                        halfway = entry + (target - entry) * 0.5
-                        if curr_price >= target: 
-                            df.at[index, 'Status'] = "🏆 Target Hit"
-                            send_telegram_alert(f"🏆 TARGET HIT: {row['Coin']} (BUY) ne profit book kar liya at ${curr_price:.2f}!")
-                        elif curr_price <= float(row['SL']): 
-                            df.at[index, 'Status'] = "💔 SL Hit"
-                        elif curr_price >= halfway and float(row['SL']) < entry:
-                            df.at[index, 'SL'] = entry
-                            df.at[index, 'Status'] = "🚀 Trailing (0 Risk)"
-                            if old_status != "🚀 Trailing (0 Risk)":
-                                send_telegram_alert(f"🛡️ ZERO RISK MODE: {row['Coin']} Stop-loss ab Entry price par set ho gaya hai!")
-                                
-                    elif "SELL" in row['Action']:
-                        halfway = entry - (entry - target) * 0.5
-                        if curr_price <= target: 
-                            df.at[index, 'Status'] = "🏆 Target Hit"
-                            send_telegram_alert(f"🏆 TARGET HIT: {row['Coin']} (SELL) ne profit book kar liya at ${curr_price:.2f}!")
-                        elif curr_price >= float(row['SL']): 
-                            df.at[index, 'Status'] = "💔 SL Hit"
-                        elif curr_price <= halfway and float(row['SL']) > entry:
-                            df.at[index, 'SL'] = entry
-                            df.at[index, 'Status'] = "🚀 Trailing (0 Risk)"
-                            if old_status != "🚀 Trailing (0 Risk)":
-                                send_telegram_alert(f"🛡️ ZERO RISK MODE: {row['Coin']} Stop-loss ab Entry price par set ho gaya hai!")
+                    if ("BUY" in row['Action'] and curr_price >= target) or ("SELL" in row['Action'] and curr_price <= target): 
+                        df.at[index, 'Status'] = "🏆 Target Hit"
+                        send_telegram_alert(f"🏆 CRYPTO BOOM! TARGET HIT: {row['Coin']} - Profit booked! 💸")
+                    elif ("BUY" in row['Action'] and curr_price <= sl) or ("SELL" in row['Action'] and curr_price >= sl): 
+                        df.at[index, 'Status'] = "💔 SL Hit"
+                    elif ("BUY" in row['Action'] and curr_price >= halfway and sl < entry) or ("SELL" in row['Action'] and curr_price <= halfway and sl > entry):
+                        df.at[index, 'SL'], df.at[index, 'Status'] = entry, "🚀 Trailing (0 Risk)"
                 except: continue
         df.to_csv(TRADE_FILE, index=False)
-        
-        col1, col2, col3 = st.columns(3)
-        col1.success(f"🏆 Win: {len(df[df['Status'] == '🏆 Target Hit'])}")
-        col2.error(f"💔 Loss: {len(df[df['Status'] == '💔 SL Hit'])}")
-        col3.warning(f"🚀 Running: {len(df[df['Status'].str.contains('Active|Trailing')])}")
-        
-        display_df = df.drop(columns=['Symbol'])
-        st.dataframe(display_df, use_container_width=True)
+        st.dataframe(df.drop(columns=['Symbol']), use_container_width=True)
+    else: st.info("📉 No active trades today.")
