@@ -12,11 +12,8 @@ st.set_page_config(page_title="Crypto God-Mode AI", layout="wide", page_icon="�
 st_autorefresh(interval=60000, limit=200, key="crypto_refresh")
 
 st.sidebar.title("⚡ Crypto Terminal")
-st.sidebar.info("24/7 AI Tracker")
-
 app_mode = st.sidebar.radio("📁 Menu:", ["🔍 Crypto Auto-Scanner", "📓 Crypto Tracker (Live)"])
 
-# Top Crypto Coins List
 crypto_list = {
     "BITCOIN": "BTC-USD", 
     "ETHEREUM": "ETH-USD", 
@@ -31,12 +28,13 @@ TRADE_FILE = f"crypto_trades_{date.today()}.csv"
 def save_trade(coin, symbol, action, entry, target, sl):
     if os.path.exists(TRADE_FILE):
         df = pd.read_csv(TRADE_FILE)
-        if coin in df['Coin'].values and "⏳ Active" in df['Status'].values:
+        # BUG FIX: Accurate check for active coin
+        if not df[(df['Coin'] == coin) & (df['Status'] == '⏳ Active')].empty:
             return 
     else:
         df = pd.DataFrame(columns=["Coin", "Symbol", "Action", "Entry", "Target", "SL", "Status"])
     
-    new_trade = pd.DataFrame([{"Coin": coin, "Symbol": symbol, "Action": action, "Entry": entry, "Target": target, "SL": sl, "Status": "⏳ Active"}])
+    new_trade = pd.DataFrame([{"Coin": coin, "Symbol": symbol, "Action": action, "Entry": round(entry, 4), "Target": round(target, 4), "SL": round(sl, 4), "Status": "⏳ Active"}])
     df = pd.concat([df, new_trade], ignore_index=True)
     df.to_csv(TRADE_FILE, index=False)
 
@@ -64,10 +62,9 @@ def calculate_crypto_indicators(data):
 
 if app_mode == "🔍 Crypto Auto-Scanner":
     st.title("🪙 Crypto AI Scanner (24/7)")
-    st.write("Scan for Live Crypto Breakouts. Trades auto-save in Tracker!")
     
     if st.button("🚀 Run Crypto Scan"):
-        with st.spinner("Analyzing Bitcoin & Altcoins..."):
+        with st.spinner("Analyzing Market..."):
             results = []
             for name, ticker_symbol in crypto_list.items():
                 try:
@@ -85,15 +82,14 @@ if app_mode == "🔍 Crypto Auto-Scanner":
                         bullish = (e9 > e21) and (rsi > 55) and (macd > macd_sig) and (curr > vwap)
                         bearish = (e9 < e21) and (rsi < 45) and (macd < macd_sig) and (curr < vwap)
                         
-                        # Yahan maine SL aur Target bada kar diya hai
                         sl_val, tgt_val = atr * 3.0, atr * 6.0 
                         
                         if bullish:
-                            save_trade(name, ticker_symbol, "🟢 BUY (LONG)", curr, curr + tgt_val, curr - sl_val)
-                            results.append({"Coin": name, "Action": "🟢 BUY", "Entry": f"${curr:.2f}", "Target": f"${curr + tgt_val:.2f}", "SL": f"${curr - sl_val:.2f}"})
+                            save_trade(name, ticker_symbol, "🟢 BUY", curr, curr + tgt_val, curr - sl_val)
+                            results.append({"Coin": name, "Action": "🟢 BUY", "Entry": f"${curr:.4f}", "Target": f"${curr + tgt_val:.4f}", "SL": f"${curr - sl_val:.4f}"})
                         elif bearish:
-                            save_trade(name, ticker_symbol, "🔴 SELL (SHORT)", curr, curr - tgt_val, curr + sl_val)
-                            results.append({"Coin": name, "Action": "🔴 SELL", "Entry": f"${curr:.2f}", "Target": f"${curr - tgt_val:.2f}", "SL": f"${curr + sl_val:.2f}"})
+                            save_trade(name, ticker_symbol, "🔴 SELL", curr, curr - tgt_val, curr + sl_val)
+                            results.append({"Coin": name, "Action": "🔴 SELL", "Entry": f"${curr:.4f}", "Target": f"${curr - tgt_val:.4f}", "SL": f"${curr + sl_val:.4f}"})
                 except:
                     continue
             
