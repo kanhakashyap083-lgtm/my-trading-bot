@@ -85,14 +85,15 @@ if app_mode == "🔍 Crypto Auto-Scanner":
                         bullish = (e9 > e21) and (rsi > 55) and (macd > macd_sig) and (curr > vwap)
                         bearish = (e9 < e21) and (rsi < 45) and (macd < macd_sig) and (curr < vwap)
                         
-                        sl_val, tgt_val = atr * 1.5, atr * 3.0
+                        # Yahan maine SL aur Target bada kar diya hai
+                        sl_val, tgt_val = atr * 3.0, atr * 6.0 
                         
                         if bullish:
-                            save_trade(name, ticker_symbol, "🟢 LONG (BUY)", curr, curr + tgt_val, curr - sl_val)
-                            results.append({"Coin": name, "Action": "🟢 LONG", "Entry": f"${curr:.2f}", "Target": f"${curr + tgt_val:.2f}", "SL": f"${curr - sl_val:.2f}"})
+                            save_trade(name, ticker_symbol, "🟢 BUY (LONG)", curr, curr + tgt_val, curr - sl_val)
+                            results.append({"Coin": name, "Action": "🟢 BUY", "Entry": f"${curr:.2f}", "Target": f"${curr + tgt_val:.2f}", "SL": f"${curr - sl_val:.2f}"})
                         elif bearish:
-                            save_trade(name, ticker_symbol, "🔴 SHORT (SELL)", curr, curr - tgt_val, curr + sl_val)
-                            results.append({"Coin": name, "Action": "🔴 SHORT", "Entry": f"${curr:.2f}", "Target": f"${curr - tgt_val:.2f}", "SL": f"${curr + sl_val:.2f}"})
+                            save_trade(name, ticker_symbol, "🔴 SELL (SHORT)", curr, curr - tgt_val, curr + sl_val)
+                            results.append({"Coin": name, "Action": "🔴 SELL", "Entry": f"${curr:.2f}", "Target": f"${curr - tgt_val:.2f}", "SL": f"${curr + sl_val:.2f}"})
                 except:
                     continue
             
@@ -113,11 +114,11 @@ elif app_mode == "📓 Crypto Tracker (Live)":
                 try:
                     curr_price = float(yf.Ticker(row['Symbol']).history(period="1d", interval="1m")['Close'].iloc[-1])
                     
-                    if "LONG" in row['Action']:
+                    if "BUY" in row['Action']:
                         if curr_price >= row['Target']: df.at[index, 'Status'] = "🏆 Target Hit"
                         elif curr_price <= row['SL']: df.at[index, 'Status'] = "💔 SL Hit"
                     
-                    elif "SHORT" in row['Action']:
+                    elif "SELL" in row['Action']:
                         if curr_price <= row['Target']: df.at[index, 'Status'] = "🏆 Target Hit"
                         elif curr_price >= row['SL']: df.at[index, 'Status'] = "💔 SL Hit"
                 except:
