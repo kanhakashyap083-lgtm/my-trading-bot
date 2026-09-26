@@ -66,6 +66,7 @@ if app_mode == "🔍 Mega Market Scanner":
     
     scan_period = "5d" if timeframe_mode == "Intraday (15 Min)" else "60d"
     scan_interval = "15m" if timeframe_mode == "Intraday (15 Min)" else "1d"
+    hold_time_text = "Same Day (Intraday)" if timeframe_mode == "Intraday (15 Min)" else "3 to 15 Days (Swing)"
     
     progress_bar = st.progress(0)
     
@@ -98,14 +99,14 @@ if app_mode == "🔍 Mega Market Scanner":
                     
                     if bullish:
                         is_new = save_trade(name, ticker_symbol, "🟢 BUY", curr, curr + tgt_pts, curr - sl_pts, timeframe_mode)
-                        results.append({"Sector/Stock": name, "Action": "🟢 BUY", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_pts:.2f}", "SL": f"₹{curr - sl_pts:.2f}"})
+                        results.append({"Sector/Stock": name, "Action": "🟢 BUY", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr + tgt_pts:.2f}", "SL": f"₹{curr - sl_pts:.2f}", "Hold": hold_time_text})
                         if is_new:
-                            send_telegram_alert(f"🚀 {timeframe_mode} BUY: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr + tgt_pts:.2f}\nSL: ₹{curr - sl_pts:.2f}")
+                            send_telegram_alert(f"🚀 {timeframe_mode} BUY: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr + tgt_pts:.2f}\nSL: ₹{curr - sl_pts:.2f}\n⏳ Hold Time: {hold_time_text}")
                     elif bearish:
                         is_new = save_trade(name, ticker_symbol, "🔴 SELL", curr, curr - tgt_pts, curr + sl_pts, timeframe_mode)
-                        results.append({"Sector/Stock": name, "Action": "🔴 SELL", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr - tgt_pts:.2f}", "SL": f"₹{curr + sl_pts:.2f}"})
+                        results.append({"Sector/Stock": name, "Action": "🔴 SELL", "Entry": f"₹{curr:.2f}", "Target": f"₹{curr - tgt_pts:.2f}", "SL": f"₹{curr + sl_pts:.2f}", "Hold": hold_time_text})
                         if is_new:
-                            send_telegram_alert(f"📉 {timeframe_mode} SELL: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr - tgt_pts:.2f}\nSL: ₹{curr + sl_pts:.2f}")
+                            send_telegram_alert(f"📉 {timeframe_mode} SELL: {name}\nEntry: ₹{curr:.2f}\nTarget: ₹{curr - tgt_pts:.2f}\nSL: ₹{curr + sl_pts:.2f}\n⏳ Hold Time: {hold_time_text}")
             except: pass
             
             progress_bar.progress((i + 1) / total_items)
